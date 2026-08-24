@@ -111,3 +111,13 @@ screenshots/*.webm
 
 replays/
 results/
+
+# Local AI / agent files
+CLAUDE.md
+.claude/
+.codex/
+
+# Local project/report notes
+docs/ridhu_report_log.md
+final_project.pdf
+
