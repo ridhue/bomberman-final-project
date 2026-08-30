@@ -4,6 +4,7 @@ from typing import List
 import events as e
 from .config import ACTIONS, EPSILON_MIN, EPSILON_DECAY, MODEL_FILE
 from .features import state_to_features
+from .rewards import add_custom_events, reward_from_events
 
 
 def setup_training(self):
@@ -30,22 +31,9 @@ def _learn_step(self, old_state, action, new_state, events: List[str], done: boo
     features = state_to_features(old_state)
     next_features = None if done else state_to_features(new_state)
     action_idx = ACTIONS.index(action)
-    reward = _placeholder_reward(events)
+    all_events = add_custom_events(old_state, action, new_state, events)
+
+    reward = reward_from_events(all_events, config_name="C")
 
     td_error = self.model.update(features, action_idx, reward, next_features, done)
     self.logger.debug(f"TD error: {td_error:.3f}, reward: {reward}")
-
-
-# TODO: swap for the real reward function once it exists, then delete this
-def _placeholder_reward(events: List[str]) -> float:
-    values = {
-        e.COIN_COLLECTED: 10,
-        e.MOVED_UP: -0.1,
-        e.MOVED_DOWN: -0.1,
-        e.MOVED_LEFT: -0.1,
-        e.MOVED_RIGHT: -0.1,
-        e.WAITED: -0.2,
-        e.INVALID_ACTION: -1,
-        e.KILLED_SELF: -10,
-    }
-    return sum(values.get(ev, 0) for ev in events)
