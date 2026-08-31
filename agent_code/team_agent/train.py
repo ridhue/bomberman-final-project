@@ -1,7 +1,6 @@
 import pickle
 from typing import List
 
-import events as e
 from .config import ACTIONS, EPSILON_MIN, EPSILON_DECAY, MODEL_FILE
 from .features import state_to_features
 from .rewards import add_custom_events, reward_from_events
