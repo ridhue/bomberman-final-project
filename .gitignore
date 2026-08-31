@@ -112,6 +112,8 @@ screenshots/*.webm
 replays/
 results/
 
+agent_code/*/logs/
+
 # Local AI / agent files
 CLAUDE.md
 .claude/
