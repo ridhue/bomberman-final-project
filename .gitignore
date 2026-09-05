@@ -113,6 +113,11 @@ replays/
 results/
 
 agent_code/*/logs/
+agent_code/*/runs/
+
+# Accidental stray files from shell mishaps
+26.2.1
+\[76
 
 # Local AI / agent files
 CLAUDE.md
