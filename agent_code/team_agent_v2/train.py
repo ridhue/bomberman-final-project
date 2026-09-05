@@ -32,7 +32,7 @@ def _learn_step(self, old_state, action, new_state, events: List[str], done: boo
     action_idx = ACTIONS.index(action)
     all_events = add_custom_events(old_state, action, new_state, events)
 
-    reward = reward_from_events(all_events, config_name="C")
+    reward = reward_from_events(all_events, config_name="S2_C")
 
     td_error = self.model.update(features, action_idx, reward, next_features, done)
     self.logger.debug(f"TD error: {td_error:.3f}, reward: {reward}")
