@@ -7,7 +7,9 @@ MODEL_FILE = "team-agent-model.pt"
 
 # untuned baseline
 LEARNING_RATE = 0.05
+
+
 DISCOUNT_FACTOR = 0.95
 EPSILON_START = 1.0
 EPSILON_MIN = 0.05
-EPSILON_DECAY = 0.9995
+EPSILON_DECAY = 0.999

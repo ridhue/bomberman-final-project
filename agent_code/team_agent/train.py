@@ -1,12 +1,38 @@
+import json
 import pickle
+from datetime import datetime
+from pathlib import Path
 from typing import List
 
+import events as e
 from .config import ACTIONS, EPSILON_MIN, EPSILON_DECAY, MODEL_FILE
 from .features import state_to_features
 from .rewards import add_custom_events, reward_from_events
 
+CHECKPOINT_DIR = Path("checkpoints/stage1")
+CHECKPOINT_INTERVAL = 500
+BEST_SCORE_WINDOW = 10
+
 
 def setup_training(self):
+    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    self.round_count = 0
+    self.recent_scores = []
+    self.best_score = float("-inf")
+    self.td_errors = []
+
+    with open(CHECKPOINT_DIR / "config_snapshot.json", "w") as f:
+        json.dump({
+            "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "scenario": "coin-heaven",
+            "learning_rate": self.model.alpha,
+            "discount_factor": self.model.gamma,
+            "epsilon_start": self.epsilon,
+            "epsilon_min": EPSILON_MIN,
+            "epsilon_decay": EPSILON_DECAY,
+            "checkpoint_interval": CHECKPOINT_INTERVAL,
+            "best_score_window": BEST_SCORE_WINDOW,
+        }, f, indent=2)
     pass
 
 
@@ -18,7 +44,40 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     _learn_step(self, last_game_state, last_action, None, events, done=True)
 
     self.epsilon = max(EPSILON_MIN, self.epsilon * EPSILON_DECAY)
+    self.model.epsilon = self.epsilon
 
+    self.round_count += 1
+    score = last_game_state["self"][1]
+
+    # metrics, one line per round
+    mean_td = sum(self.td_errors) / len(self.td_errors) if self.td_errors else 0.0
+    with open(CHECKPOINT_DIR / "metrics.jsonl", "a") as f:
+        f.write(json.dumps({
+            "round": self.round_count,
+            "score": score,
+            "coins": events.count(e.COIN_COLLECTED),
+            "self_kills": events.count(e.KILLED_SELF),
+            "epsilon": round(self.epsilon, 6),
+            "mean_td_error": round(mean_td, 6),
+        }) + "\n")
+    self.td_errors = []
+
+    # best model, on a rolling window
+    self.recent_scores.append(score)
+    self.recent_scores = self.recent_scores[-BEST_SCORE_WINDOW:]
+    if len(self.recent_scores) == BEST_SCORE_WINDOW:
+        window_mean = sum(self.recent_scores) / BEST_SCORE_WINDOW
+        if window_mean > self.best_score:
+            self.best_score = window_mean
+            with open(CHECKPOINT_DIR / "checkpoint_best.pt", "wb") as f:
+                pickle.dump(self.model, f)
+
+    # periodic snapshot
+    if self.round_count % CHECKPOINT_INTERVAL == 0:
+        with open(CHECKPOINT_DIR / f"checkpoint_{self.round_count:06d}.pt", "wb") as f:
+            pickle.dump(self.model, f)
+
+    # live model, unchanged
     with open(MODEL_FILE, "wb") as file:
         pickle.dump(self.model, file)
 
@@ -35,4 +94,5 @@ def _learn_step(self, old_state, action, new_state, events: List[str], done: boo
     reward = reward_from_events(all_events, config_name="C")
 
     td_error = self.model.update(features, action_idx, reward, next_features, done)
+    self.td_errors.append(td_error)
     self.logger.debug(f"TD error: {td_error:.3f}, reward: {reward}")

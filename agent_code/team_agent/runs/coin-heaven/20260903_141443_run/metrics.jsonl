@@ -1,0 +1,5 @@
+{"round": 1, "score": 3, "coins": 0, "kills": 0, "self_kills": 1, "epsilon": 0.9995, "mean_td_error": 0.442695, "timestamp": "2026-09-03T14:14:43"}
+{"round": 2, "score": 2, "coins": 0, "kills": 0, "self_kills": 1, "epsilon": 0.999, "mean_td_error": 2.15131, "timestamp": "2026-09-03T14:14:43"}
+{"round": 3, "score": 0, "coins": 0, "kills": 0, "self_kills": 1, "epsilon": 0.998501, "mean_td_error": -2.27456, "timestamp": "2026-09-03T14:14:43"}
+{"round": 4, "score": 0, "coins": 1, "kills": 0, "self_kills": 1, "epsilon": 0.998001, "mean_td_error": -0.63548, "timestamp": "2026-09-03T14:14:43"}
+{"round": 5, "score": 1, "coins": 0, "kills": 0, "self_kills": 1, "epsilon": 0.997502, "mean_td_error": 0.827209, "timestamp": "2026-09-03T14:14:43"}
