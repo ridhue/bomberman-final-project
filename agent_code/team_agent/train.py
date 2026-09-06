@@ -1,4 +1,5 @@
 import json
+import os
 import pickle
 from datetime import datetime
 from pathlib import Path
@@ -20,11 +21,14 @@ def setup_training(self):
     self.recent_scores = []
     self.best_score = float("-inf")
     self.td_errors = []
+    self.coins_this_round = 0
 
+    # Set by run_training.py; falls back to "unknown" if main.py is invoked directly.
     with open(CHECKPOINT_DIR / "config_snapshot.json", "w") as f:
         json.dump({
             "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
-            "scenario": "coin-heaven",
+            "scenario": os.environ.get("TRAIN_SCENARIO", "unknown"),
+            "seed": os.environ.get("TRAIN_SEED", "unknown"),
             "learning_rate": self.model.alpha,
             "discount_factor": self.model.gamma,
             "epsilon_start": self.epsilon,
@@ -33,7 +37,6 @@ def setup_training(self):
             "checkpoint_interval": CHECKPOINT_INTERVAL,
             "best_score_window": BEST_SCORE_WINDOW,
         }, f, indent=2)
-    pass
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -55,12 +58,13 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
         f.write(json.dumps({
             "round": self.round_count,
             "score": score,
-            "coins": events.count(e.COIN_COLLECTED),
+            "coins": self.coins_this_round,
             "self_kills": events.count(e.KILLED_SELF),
             "epsilon": round(self.epsilon, 6),
             "mean_td_error": round(mean_td, 6),
         }) + "\n")
     self.td_errors = []
+    self.coins_this_round = 0
 
     # best model, on a rolling window
     self.recent_scores.append(score)
@@ -85,6 +89,8 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 def _learn_step(self, old_state, action, new_state, events: List[str], done: bool):
     if old_state is None or action is None or action not in ACTIONS:
         return
+
+    self.coins_this_round += events.count(e.COIN_COLLECTED)
 
     features = state_to_features(old_state)
     next_features = None if done else state_to_features(new_state)
