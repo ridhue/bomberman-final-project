@@ -10,7 +10,7 @@ from .config import ACTIONS, EPSILON_MIN, EPSILON_DECAY, MODEL_FILE
 from .features import state_to_features
 from .rewards import add_custom_events, reward_from_events
 
-CHECKPOINT_DIR = Path("checkpoints/stage1")
+CHECKPOINT_DIR = Path("checkpoints") / os.environ.get("TRAIN_STAGE", "stage1")
 CHECKPOINT_INTERVAL = 500
 BEST_SCORE_WINDOW = 10
 
