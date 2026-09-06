@@ -1,8 +1,5 @@
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
-# bump when the feature vector shape/meaning changes
-FEATURE_VERSION = "v1_stage1_nav_coin"
-
 MODEL_FILE = "team-agent-model.pt"
 
 # untuned baseline
