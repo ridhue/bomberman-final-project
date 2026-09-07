@@ -46,7 +46,12 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
     _learn_step(self, last_game_state, last_action, None, events, done=True)
 
-    self.epsilon = max(EPSILON_MIN, self.epsilon * EPSILON_DECAY)
+    # LINEAR DECAY: epsilon decays from ~1.0 to EPSILON_MIN over full training
+    # Assumes training runs 20,000 rounds (adjust TOTAL_ROUNDS if different)
+    total_rounds = 20000
+    epsilon_start = 1.0
+    progress = self.round_count / total_rounds
+    self.epsilon = max(EPSILON_MIN, epsilon_start * (1 - progress))
     self.model.epsilon = self.epsilon
 
     self.round_count += 1

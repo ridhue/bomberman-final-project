@@ -3,7 +3,7 @@ ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 MODEL_FILE = "team-agent-model.pt"
 
 # untuned baseline
-LEARNING_RATE = 0.05
+LEARNING_RATE = 0.01
 
 
 DISCOUNT_FACTOR = 0.95
