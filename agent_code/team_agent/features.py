@@ -132,10 +132,10 @@ def state_to_features(game_state: dict) -> np.ndarray:
     danger_here = np.array([1.0 if (x, y) in danger_tiles else 0.0], dtype=np.float32)
 
     safe_tiles = [tile for tile in zip(*np.nonzero(free)) if tile not in danger_tiles]
-    safe_mask = np.zeros_like(free)
-    for tile in safe_tiles:
-        safe_mask[tile] = True
-    escape_direction, _ = _bfs_direction_to_nearest(safe_mask, (x, y), safe_tiles)
+    # traverse on `free`, not a safe-only mask - escaping usually means crossing
+    # 1-2 still-dangerous tiles before clearing the blast radius, so restricting
+    # traversal to already-safe tiles made most real escapes invisible to BFS
+    escape_direction, _ = _bfs_direction_to_nearest(free, (x, y), safe_tiles)
     escape_onehot = _direction_onehot(escape_direction)
 
     crates = list(zip(*np.nonzero(field == 1)))
