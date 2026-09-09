@@ -31,6 +31,7 @@ def main():
     env["TRAIN_STAGE"] = args.stage
     env["TRAIN_SCENARIO"] = args.scenario
     env["TRAIN_SEED"] = str(args.seed)
+    env["TRAIN_N_ROUNDS"] = str(args.n_rounds)
 
     command = [
         sys.executable, "main.py", "play",
