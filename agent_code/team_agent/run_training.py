@@ -9,6 +9,7 @@ when you need the run to be reproducible.
 
 Usage:
     python -m agent_code.team_agent.run_training --stage stage2 --scenario classic --seed 42 --n-rounds 20000
+    python -m agent_code.team_agent.run_training --stage stage3 --scenario classic --seed 42 --n-rounds 20000 --opponents coin_collector_agent
 """
 import argparse
 import os
@@ -25,6 +26,10 @@ def main():
     parser.add_argument("--scenario", default="coin-heaven")
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--n-rounds", type=int, default=20000)
+    parser.add_argument(
+        "--opponents", nargs="*", default=[],
+        help="e.g. coin_collector_agent peaceful_agent - needed for Stage 3+, omit for solo training",
+    )
     args = parser.parse_args()
 
     env = os.environ.copy()
@@ -35,7 +40,7 @@ def main():
 
     command = [
         sys.executable, "main.py", "play",
-        "--agents", "team_agent",
+        "--agents", "team_agent", *args.opponents,
         "--train", "1",
         "--scenario", args.scenario,
         "--seed", str(args.seed),
