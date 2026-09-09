@@ -19,13 +19,51 @@ STAYED_IN_DANGER = "STAYED_IN_DANGER"
 MOVED_TOWARD_SAFETY = "MOVED_TOWARD_SAFETY"
 MOVED_AWAY_FROM_SAFETY = "MOVED_AWAY_FROM_SAFETY"
 BOMB_WITHOUT_ESCAPE = "BOMB_WITHOUT_ESCAPE"
+MOVED_TOWARD_OPPONENT = "MOVED_TOWARD_OPPONENT"
+MOVED_AWAY_FROM_OPPONENT = "MOVED_AWAY_FROM_OPPONENT"
+OFFENSIVE_BOMB_DROPPED = "OFFENSIVE_BOMB_DROPPED"
+NON_OFFENSIVE_BOMB_DROPPED = "NON_OFFENSIVE_BOMB_DROPPED"
 
 
 # ------------------------------------------------------------------
-# Task 1 reward configurations
+# Reward configurations
 # ------------------------------------------------------------------
 
 REWARD_CONFIGS = {
+    # --------------------------------------------------------------
+    # Stage 1
+    # --------------------------------------------------------------
+
+    # Sparse baseline
+    "A": {
+        e.COIN_COLLECTED: 10,
+        e.KILLED_SELF: -20,
+    },
+
+    # Add behaviour penalties
+    "B": {
+        e.COIN_COLLECTED: 10,
+        e.INVALID_ACTION: -1,
+        e.WAITED: -0.5,
+        e.BOMB_DROPPED: -2,
+        e.KILLED_SELF: -20,
+    },
+
+    # Add directional coin shaping
+    "C": {
+        e.COIN_COLLECTED: 10,
+        e.INVALID_ACTION: -1,
+        e.WAITED: -0.5,
+        e.BOMB_DROPPED: -2,
+        e.KILLED_SELF: -20,
+        MOVED_TOWARD_COIN: 0.2,
+        MOVED_AWAY_FROM_COIN: -0.2,
+    },
+
+    # --------------------------------------------------------------
+    # Stage 2
+    # --------------------------------------------------------------
+
     "S2_A": {
         e.COIN_COLLECTED: 10,
         e.CRATE_DESTROYED: 2,
@@ -94,6 +132,86 @@ REWARD_CONFIGS = {
         MOVED_AWAY_FROM_SAFETY: -0.3,
         BOMB_WITHOUT_ESCAPE: -15,
     },
+
+    # --------------------------------------------------------------
+    # Stage 3 - built on S2_E (the final Stage 2 config), not the older
+    # S2_C these were originally drafted against, so Stage 3 inherits the
+    # validated escape-safety shaping instead of quietly losing it
+    # --------------------------------------------------------------
+
+    "S3_A": {
+        # Stage 2 capabilities (from S2_E)
+        e.COIN_COLLECTED: 10,
+        e.CRATE_DESTROYED: 2,
+        e.COIN_FOUND: 2,
+        e.INVALID_ACTION: -1,
+        e.WAITED: -0.5,
+        USEFUL_BOMB_DROPPED: 0.5,
+        USELESS_BOMB_DROPPED: -0.5,
+        ESCAPED_DANGER: 1.0,
+        ENTERED_DANGER: -1.0,
+        STAYED_IN_DANGER: -0.2,
+        MOVED_TOWARD_SAFETY: 0.3,
+        MOVED_AWAY_FROM_SAFETY: -0.3,
+        BOMB_WITHOUT_ESCAPE: -15,
+
+        # Stage 3 outcomes
+        e.KILLED_OPPONENT: 50,
+        e.KILLED_SELF: -40,
+        e.GOT_KILLED: -20,
+        e.SURVIVED_ROUND: 5,
+    },
+
+    # S3_A + opponent pursuit shaping
+    "S3_B": {
+        e.COIN_COLLECTED: 10,
+        e.CRATE_DESTROYED: 2,
+        e.COIN_FOUND: 2,
+        e.INVALID_ACTION: -1,
+        e.WAITED: -0.5,
+        USEFUL_BOMB_DROPPED: 0.5,
+        USELESS_BOMB_DROPPED: -0.5,
+        ESCAPED_DANGER: 1.0,
+        ENTERED_DANGER: -1.0,
+        STAYED_IN_DANGER: -0.2,
+        MOVED_TOWARD_SAFETY: 0.3,
+        MOVED_AWAY_FROM_SAFETY: -0.3,
+        BOMB_WITHOUT_ESCAPE: -15,
+        e.KILLED_OPPONENT: 50,
+        e.KILLED_SELF: -40,
+        e.GOT_KILLED: -20,
+        e.SURVIVED_ROUND: 5,
+
+        MOVED_TOWARD_OPPONENT: 0.3,
+        MOVED_AWAY_FROM_OPPONENT: -0.1,
+    },
+
+    # S3_B + offensive bomb shaping
+    "S3_C": {
+        e.COIN_COLLECTED: 10,
+        e.CRATE_DESTROYED: 2,
+        e.COIN_FOUND: 2,
+        e.INVALID_ACTION: -1,
+        e.WAITED: -0.5,
+        USEFUL_BOMB_DROPPED: 0.5,
+        USELESS_BOMB_DROPPED: -0.5,
+        ESCAPED_DANGER: 1.0,
+        ENTERED_DANGER: -1.0,
+        STAYED_IN_DANGER: -0.2,
+        MOVED_TOWARD_SAFETY: 0.3,
+        MOVED_AWAY_FROM_SAFETY: -0.3,
+        BOMB_WITHOUT_ESCAPE: -15,
+        e.KILLED_OPPONENT: 50,
+        e.KILLED_SELF: -40,
+        e.GOT_KILLED: -20,
+        e.SURVIVED_ROUND: 5,
+
+        MOVED_TOWARD_OPPONENT: 0.3,
+        MOVED_AWAY_FROM_OPPONENT: -0.1,
+
+        OFFENSIVE_BOMB_DROPPED: 2.0,
+        NON_OFFENSIVE_BOMB_DROPPED: -0.5,
+    },
 }
 
 
@@ -145,6 +263,27 @@ def bomb_would_hit_crate(game_state):
 
     return False
 
+def bomb_would_hit_opponent(game_state):
+    """
+    Return True if a bomb dropped at the agent's current position
+    would reach at least one opponent.
+    """
+    if game_state is None:
+        return False
+
+    from .features import _bomb_blast_coords
+
+    field = game_state["field"]
+    _, _, _, (x, y) = game_state["self"]
+
+    opponents = {
+        other[3]
+        for other in game_state["others"]
+    }
+
+    blast = set(_bomb_blast_coords(field, x, y))
+
+    return any(position in blast for position in opponents)
 
 def add_custom_events(
     old_game_state,
@@ -251,7 +390,39 @@ def add_custom_events(
                 elif new_dist > old_dist:
                     all_events.append(MOVED_AWAY_FROM_SAFETY)
 
+    # --------------------------------------------------------------
+    # Stage 3: movement relative to nearest opponent
+    # --------------------------------------------------------------
+
+    if self_action in movement_actions:
+        old_opponent_distance = opponent_distance(old_game_state)
+        new_opponent_distance = opponent_distance(new_game_state)
+
+        if (
+            old_opponent_distance is not None
+            and new_opponent_distance is not None
+        ):
+            if new_opponent_distance < old_opponent_distance:
+                all_events.append(MOVED_TOWARD_OPPONENT)
+
+            elif new_opponent_distance > old_opponent_distance:
+                all_events.append(MOVED_AWAY_FROM_OPPONENT)
+
+    # --------------------------------------------------------------
+    # Stage 3: offensive bomb placement
+    # --------------------------------------------------------------
+
+    if (
+        self_action == "BOMB"
+        and e.BOMB_DROPPED in all_events
+    ):
+        if bomb_would_hit_opponent(old_game_state):
+            all_events.append(OFFENSIVE_BOMB_DROPPED)
+        else:
+            all_events.append(NON_OFFENSIVE_BOMB_DROPPED)
+
     return all_events
+
 
 def nearest_safe_tile_distance(game_state):
     """Manhattan distance from the agent to the nearest non-dangerous tile."""
@@ -277,6 +448,36 @@ def is_in_danger(game_state):
 
     return position in _danger_tiles(field, game_state)
 
+def opponent_distance(game_state):
+    """
+    Return BFS distance to the nearest reachable opponent.
+    Returns None if no opponent is reachable.
+    """
+    if game_state is None:
+        return None
+
+    from .features import _bfs_direction_to_nearest
+
+    field = game_state["field"]
+    _, _, _, position = game_state["self"]
+
+    opponents = [
+        other[3]
+        for other in game_state["others"]
+    ]
+
+    if not opponents:
+        return None
+
+    free = field == 0
+
+    _, distance = _bfs_direction_to_nearest(
+        free,
+        position,
+        opponents,
+    )
+
+    return distance
 
 def reward_from_events(events, config_name="C"):
     """
@@ -290,6 +491,12 @@ def reward_from_events(events, config_name="C"):
         S2_A = Task 2 outcome rewards
         S2_B = Task 2 bomb-placement shaping
         S2_C = Task 2 bomb-placement + escape shaping
+        S2_D = S2_C + graduated toward/away-from-safety shaping
+        S2_E = S2_D + bomb-without-escape penalty (final Stage 2 config)
+
+        S3_A = S2_E + hunting outcomes (kills/deaths/survival)
+        S3_B = S3_A + opponent pursuit shaping
+        S3_C = S3_B + offensive bomb shaping
     """
     if config_name not in REWARD_CONFIGS:
         raise ValueError(

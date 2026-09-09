@@ -3,18 +3,20 @@ from collections import deque
 import numpy as np
 import settings as s
 
-FEATURE_VERSION = "v2_stage2_danger_crate_escape"
+FEATURE_VERSION = "v4_stage3_opponent_hunt_bomb_escape"
 
 DIRECTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 DELTA = {'UP': (0, -1), 'DOWN': (0, 1), 'LEFT': (-1, 0), 'RIGHT': (1, 0)}
 
-N_FEATURES = 29
+N_FEATURES = 36
 # 4 free-direction flags + 5-way coin-direction one-hot + coin distance + bias        (11, stage 1)
 # 4 danger-direction flags + 1 danger-here flag                                       (5)
 # 5-way escape-direction one-hot (nearest safe tile)                                  (5)
 # 5-way crate-direction one-hot + crate distance                                      (6)
 # 1 bomb-available flag                                                               (1)
 # 1 flag: would an escape route still exist if I bombed right now                     (1)
+# 5-way opponent-direction one-hot + opponent distance                                (6, stage 3)
+# 1 flag: would a bomb dropped here reach at least one opponent                       (1)
 
 
 def _bfs_direction_to_nearest(free: np.ndarray, start: tuple, targets: list):
@@ -99,7 +101,7 @@ def _escape_exists_if_bombed(field: np.ndarray, game_state: dict, x: int, y: int
 
 def state_to_features(game_state: dict) -> np.ndarray:
     """
-    29 floats:
+    36 floats:
       [0:4]   free-tile flag for UP, DOWN, LEFT, RIGHT
       [4:9]   one-hot direction to nearest reachable coin (UP, DOWN, LEFT, RIGHT, NONE)
       [9]     distance to that coin, normalized to [0, 1] (1.0 = unreachable/none)
@@ -111,6 +113,9 @@ def state_to_features(game_state: dict) -> np.ndarray:
       [26]    distance to that tile, normalized to [0, 1] (1.0 = unreachable/none)
       [27]    bomb-available flag
       [28]    flag: would an escape route still exist if I bombed the current tile now
+      [29:34] one-hot direction to nearest opponent (UP, DOWN, LEFT, RIGHT, NONE)
+      [34]    distance to that opponent, normalized to [0, 1] (1.0 = unreachable/none)
+      [35]    flag: would a bomb dropped on the current tile reach at least one opponent
     """
     if game_state is None:
         return np.zeros(N_FEATURES, dtype=np.float32)
@@ -167,10 +172,24 @@ def state_to_features(game_state: dict) -> np.ndarray:
         dtype=np.float32,
     )
 
+    # --- stage 3: opponents ---
+    opponent_positions = [pos for _, _, _, pos in game_state['others']]
+    opponent_direction, opponent_distance = _bfs_direction_to_nearest(free, (x, y), opponent_positions)
+    opponent_onehot = _direction_onehot(opponent_direction)
+    opponent_dist_norm = opponent_distance / max_dist if opponent_distance is not None else 1.0
+
+    blast_here = set(_bomb_blast_coords(field, x, y))
+    opponent_in_blast = np.array(
+        [1.0 if any(pos in blast_here for pos in opponent_positions) else 0.0],
+        dtype=np.float32,
+    )
+
     return np.concatenate([
         free_dirs, coin_onehot, [coin_dist_norm], [1.0],
         danger_dirs, danger_here, escape_onehot,
         crate_onehot, [crate_dist_norm],
         bomb_available,
         escape_after_bomb,
+        opponent_onehot, [opponent_dist_norm],
+        opponent_in_blast,
     ]).astype(np.float32)
