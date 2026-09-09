@@ -8,12 +8,13 @@ FEATURE_VERSION = "v2_stage2_danger_crate_escape"
 DIRECTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 DELTA = {'UP': (0, -1), 'DOWN': (0, 1), 'LEFT': (-1, 0), 'RIGHT': (1, 0)}
 
-N_FEATURES = 28
+N_FEATURES = 29
 # 4 free-direction flags + 5-way coin-direction one-hot + coin distance + bias        (11, stage 1)
 # 4 danger-direction flags + 1 danger-here flag                                       (5)
 # 5-way escape-direction one-hot (nearest safe tile)                                  (5)
 # 5-way crate-direction one-hot + crate distance                                      (6)
 # 1 bomb-available flag                                                               (1)
+# 1 flag: would an escape route still exist if I bombed right now                     (1)
 
 
 def _bfs_direction_to_nearest(free: np.ndarray, start: tuple, targets: list):
@@ -87,9 +88,18 @@ def _danger_tiles(field: np.ndarray, game_state: dict) -> set:
     return danger
 
 
+def _escape_exists_if_bombed(field: np.ndarray, game_state: dict, x: int, y: int) -> bool:
+    """True if some tile stays reachable and safe after a bomb dropped at (x, y) now."""
+    hypothetical_danger = _danger_tiles(field, game_state) | set(_bomb_blast_coords(field, x, y))
+    free = field == 0
+    safe_tiles = [tile for tile in zip(*np.nonzero(free)) if tile not in hypothetical_danger]
+    direction, _ = _bfs_direction_to_nearest(free, (x, y), safe_tiles)
+    return direction is not None
+
+
 def state_to_features(game_state: dict) -> np.ndarray:
     """
-    28 floats:
+    29 floats:
       [0:4]   free-tile flag for UP, DOWN, LEFT, RIGHT
       [4:9]   one-hot direction to nearest reachable coin (UP, DOWN, LEFT, RIGHT, NONE)
       [9]     distance to that coin, normalized to [0, 1] (1.0 = unreachable/none)
@@ -100,6 +110,7 @@ def state_to_features(game_state: dict) -> np.ndarray:
       [21:26] one-hot direction to nearest crate-adjacent tile (UP, DOWN, LEFT, RIGHT, NONE)
       [26]    distance to that tile, normalized to [0, 1] (1.0 = unreachable/none)
       [27]    bomb-available flag
+      [28]    flag: would an escape route still exist if I bombed the current tile now
     """
     if game_state is None:
         return np.zeros(N_FEATURES, dtype=np.float32)
@@ -151,9 +162,15 @@ def state_to_features(game_state: dict) -> np.ndarray:
 
     bomb_available = np.array([1.0 if bombs_left else 0.0], dtype=np.float32)
 
+    escape_after_bomb = np.array(
+        [1.0 if _escape_exists_if_bombed(field, game_state, x, y) else 0.0],
+        dtype=np.float32,
+    )
+
     return np.concatenate([
         free_dirs, coin_onehot, [coin_dist_norm], [1.0],
         danger_dirs, danger_here, escape_onehot,
         crate_onehot, [crate_dist_norm],
         bomb_available,
+        escape_after_bomb,
     ]).astype(np.float32)
