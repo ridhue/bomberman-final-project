@@ -1,6 +1,8 @@
+import numpy as np
+
 import events as e
 import settings as s
-from .features import _danger_tiles
+from .features import _danger_tiles, _escape_exists_if_bombed
 
 
 # ------------------------------------------------------------------
@@ -14,6 +16,9 @@ USELESS_BOMB_DROPPED = "USELESS_BOMB_DROPPED"
 ESCAPED_DANGER = "ESCAPED_DANGER"
 ENTERED_DANGER = "ENTERED_DANGER"
 STAYED_IN_DANGER = "STAYED_IN_DANGER"
+MOVED_TOWARD_SAFETY = "MOVED_TOWARD_SAFETY"
+MOVED_AWAY_FROM_SAFETY = "MOVED_AWAY_FROM_SAFETY"
+BOMB_WITHOUT_ESCAPE = "BOMB_WITHOUT_ESCAPE"
 
 
 # ------------------------------------------------------------------
@@ -51,6 +56,43 @@ REWARD_CONFIGS = {
         ESCAPED_DANGER: 1.0,
         ENTERED_DANGER: -1.0,
         STAYED_IN_DANGER: -0.2,
+    },
+
+    # S2_C + graduated feedback while still in danger (were flat -0.2
+    # regardless of direction) - local experiment, not Aleksandra's config
+    "S2_D": {
+        e.COIN_COLLECTED: 10,
+        e.CRATE_DESTROYED: 2,
+        e.COIN_FOUND: 2,
+        e.KILLED_SELF: -20,
+        e.INVALID_ACTION: -1,
+        e.WAITED: -0.5,
+        USEFUL_BOMB_DROPPED: 0.5,
+        USELESS_BOMB_DROPPED: -0.5,
+        ESCAPED_DANGER: 1.0,
+        ENTERED_DANGER: -1.0,
+        STAYED_IN_DANGER: -0.2,
+        MOVED_TOWARD_SAFETY: 0.3,
+        MOVED_AWAY_FROM_SAFETY: -0.3,
+    },
+
+    # S2_D + penalize bombing into a spot with no escape route - catches the
+    # actual bad decision instead of only punishing the death several steps later
+    "S2_E": {
+        e.COIN_COLLECTED: 10,
+        e.CRATE_DESTROYED: 2,
+        e.COIN_FOUND: 2,
+        e.KILLED_SELF: -20,
+        e.INVALID_ACTION: -1,
+        e.WAITED: -0.5,
+        USEFUL_BOMB_DROPPED: 0.5,
+        USELESS_BOMB_DROPPED: -0.5,
+        ESCAPED_DANGER: 1.0,
+        ENTERED_DANGER: -1.0,
+        STAYED_IN_DANGER: -0.2,
+        MOVED_TOWARD_SAFETY: 0.3,
+        MOVED_AWAY_FROM_SAFETY: -0.3,
+        BOMB_WITHOUT_ESCAPE: -15,
     },
 }
 
@@ -179,6 +221,11 @@ def add_custom_events(
         else:
             all_events.append(USELESS_BOMB_DROPPED)
 
+        field = old_game_state["field"]
+        x, y = old_game_state["self"][3]
+        if not _escape_exists_if_bombed(field, old_game_state, x, y):
+            all_events.append(BOMB_WITHOUT_ESCAPE)
+
     # --------------------------------------------------------------
     # Task 2: danger / escape behaviour
     # --------------------------------------------------------------
@@ -196,7 +243,29 @@ def add_custom_events(
         elif old_danger and new_danger:
             all_events.append(STAYED_IN_DANGER)
 
+            old_dist = nearest_safe_tile_distance(old_game_state)
+            new_dist = nearest_safe_tile_distance(new_game_state)
+            if old_dist is not None and new_dist is not None:
+                if new_dist < old_dist:
+                    all_events.append(MOVED_TOWARD_SAFETY)
+                elif new_dist > old_dist:
+                    all_events.append(MOVED_AWAY_FROM_SAFETY)
+
     return all_events
+
+def nearest_safe_tile_distance(game_state):
+    """Manhattan distance from the agent to the nearest non-dangerous tile."""
+    field = game_state["field"]
+    danger = _danger_tiles(field, game_state)
+    free = field == 0
+    safe_tiles = [tile for tile in zip(*np.nonzero(free)) if tile not in danger]
+
+    if not safe_tiles:
+        return None
+
+    position = game_state["self"][3]
+    return min(manhattan_distance(position, tile) for tile in safe_tiles)
+
 
 def is_in_danger(game_state):
     """Return True if the agent is currently on a dangerous tile."""
