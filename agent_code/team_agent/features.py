@@ -90,10 +90,26 @@ def _danger_tiles(field: np.ndarray, game_state: dict) -> set:
     return danger
 
 
+def _free_mask(field: np.ndarray, game_state: dict, block_opponents: bool = True) -> np.ndarray:
+    """Walkable tiles: static field (walls/crates) minus tiles a bomb currently
+    occupies (a bomb blocks its tile until it explodes) and, by default, tiles
+    an opponent currently occupies (you can't walk through another agent).
+    `block_opponents=False` is for the opponent-direction BFS itself, where an
+    opponent's own tile must still count as a reachable target."""
+    free = field == 0
+    for (bx, by), _timer in game_state['bombs']:
+        free[bx, by] = False
+    if block_opponents:
+        for _, _, _, (ox, oy) in game_state['others']:
+            free[ox, oy] = False
+    return free
+
+
 def _escape_exists_if_bombed(field: np.ndarray, game_state: dict, x: int, y: int) -> bool:
     """True if some tile stays reachable and safe after a bomb dropped at (x, y) now."""
     hypothetical_danger = _danger_tiles(field, game_state) | set(_bomb_blast_coords(field, x, y))
-    free = field == 0
+    free = _free_mask(field, game_state)
+    free[x, y] = False  # the bomb we'd drop here blocks this tile too
     safe_tiles = [tile for tile in zip(*np.nonzero(free)) if tile not in hypothetical_danger]
     direction, _ = _bfs_direction_to_nearest(free, (x, y), safe_tiles)
     return direction is not None
@@ -124,7 +140,7 @@ def state_to_features(game_state: dict) -> np.ndarray:
     _, _, bombs_left, (x, y) = game_state['self']
     coins = game_state['coins']
     max_dist = float(field.shape[0] + field.shape[1])
-    free = field == 0
+    free = _free_mask(field, game_state)
 
     # --- stage 1: walls, coin direction ---
     free_dirs = np.zeros(4, dtype=np.float32)
@@ -132,7 +148,7 @@ def state_to_features(game_state: dict) -> np.ndarray:
         dx, dy = DELTA[action]
         nx, ny = x + dx, y + dy
         if 0 <= nx < field.shape[0] and 0 <= ny < field.shape[1]:
-            free_dirs[i] = 1.0 if field[nx, ny] == 0 else 0.0
+            free_dirs[i] = 1.0 if free[nx, ny] else 0.0
 
     coin_direction, coin_distance = _bfs_direction_to_nearest(free, (x, y), coins)
     coin_onehot = _direction_onehot(coin_direction)
@@ -173,8 +189,10 @@ def state_to_features(game_state: dict) -> np.ndarray:
     )
 
     # --- stage 3: opponents ---
+    # own tile must stay reachable as a BFS target, so don't block opponents here
+    free_to_opponents = _free_mask(field, game_state, block_opponents=False)
     opponent_positions = [pos for _, _, _, pos in game_state['others']]
-    opponent_direction, opponent_distance = _bfs_direction_to_nearest(free, (x, y), opponent_positions)
+    opponent_direction, opponent_distance = _bfs_direction_to_nearest(free_to_opponents, (x, y), opponent_positions)
     opponent_onehot = _direction_onehot(opponent_direction)
     opponent_dist_norm = opponent_distance / max_dist if opponent_distance is not None else 1.0
 
