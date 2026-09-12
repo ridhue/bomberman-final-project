@@ -132,3 +132,148 @@ navigation learning.
 
 The reward configurations should be compared using the same model,
 features, training duration and evaluation protocol.
+
+## Task 2 - Crates, Bombs and Escape Behaviour
+
+### Purpose
+
+Task 2 extends the Stage 1 navigation problem by introducing crates,
+hidden coins and bomb usage.
+
+The reward and evaluation setup therefore focuses on two goals:
+
+1. using bombs effectively to destroy crates and reveal/collect coins
+2. surviving the resulting explosions
+
+The Stage 2 experiments use the `loot-crate` scenario.
+
+---
+
+### Stage 2 Reward Configurations
+
+The reward configurations are defined in:
+
+`agent_code/team_agent/rewards.py`
+
+Three configurations are prepared for a controlled comparison.
+
+#### S2_A - Outcome Rewards
+
+The first configuration mainly rewards direct task outcomes.
+
+- `COIN_COLLECTED`: +10
+- `CRATE_DESTROYED`: +2
+- `COIN_FOUND`: +2
+- `KILLED_SELF`: -20
+
+This serves as the basic Stage 2 reward baseline.
+
+#### S2_B - Bomb Placement Shaping
+
+S2_B extends the outcome rewards with behaviour-related penalties and
+bomb-placement feedback.
+
+Additional custom events distinguish between bombs that can hit a crate
+and bombs that are unlikely to contribute to crate destruction.
+
+- `INVALID_ACTION`: -1
+- `WAITED`: -0.5
+- `USEFUL_BOMB_DROPPED`: +0.5
+- `USELESS_BOMB_DROPPED`: -0.5
+
+The purpose is to test whether directly rewarding useful bomb placement
+improves crate destruction efficiency.
+
+#### S2_C - Bomb Escape Shaping
+
+S2_C additionally rewards safe behaviour around bombs.
+
+Custom events:
+
+- `ESCAPED_DANGER`: +1.0
+- `ENTERED_DANGER`: -1.0
+- `STAYED_IN_DANGER`: -0.2
+
+Danger information is based on the Stage 2 bomb and explosion representation
+used by the shared `team_agent`.
+
+The purpose is to test whether explicit escape-related shaping reduces
+self-kills while preserving effective bomb usage.
+
+---
+
+### Controlled Stage 2 Comparison
+
+The planned comparison is:
+
+`S2_A vs S2_B vs S2_C`
+
+The following should remain constant between reward configurations:
+
+- Stage 2 feature representation
+- linear Q-model architecture
+- training scenario
+- training duration
+- learning rate
+- discount factor
+- epsilon schedule
+- evaluation procedure
+
+Each reward configuration should be trained from a fresh model.
+
+Where possible, training should be repeated using controlled or multiple
+training seeds.
+
+---
+
+### Task 2 Evaluation
+
+Task 2 evaluation is implemented in:
+
+`evaluation/task2/`
+
+Run an evaluation from the repository root with:
+
+```bash
+python evaluation/task2/run_task2_evaluation.py --agent AGENT_NAME
+```
+
+### Metrics
+
+The following metrics are recorded:
+
+### Performance
+-average score per round
+-coins collected per round
+-crates destroyed per round
+
+### Safety
+-self-kills per round
+
+### Bomb Behaviour
+-bombs dropped per round
+-crates destroyed per bomb
+
+### Diagnostics
+-invalid actions per round
+-steps per round
+
+crates_per_bomb is included as an additional diagnostic measure of bomb
+efficiency. A higher value indicates that fewer bombs are required to
+destroy the same number of crates.
+
+### Comparing Agents
+
+```bash
+python evaluation/task2/compare_task2_agents.py --agents AGENT_1 AGENT_2 AGENT_3
+```
+
+The comparison is saved to: results/task2/task2_agent_comparison.csv
+
+Plots can then be generated with:
+
+```bash
+python evaluation/task2/plot_task2_comparison.py
+```
+
+The plotting script currently produces comparisons for crates destroyed per round, self-kills per round and crates destroyed per bomb
