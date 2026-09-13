@@ -1,6 +1,12 @@
+import os
+
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
 
-MODEL_FILE = "team-agent-model.pt"
+# Override lets a one-off eval point at a specific checkpoint without
+# touching the shared live model file - safe to change on disk even while
+# other processes are mid-run, since they already have this constant
+# cached in memory from their own startup import.
+MODEL_FILE = os.environ.get("MODEL_FILE_OVERRIDE", "team-agent-model.pt")
 
 # untuned baseline
 LEARNING_RATE = 0.01
