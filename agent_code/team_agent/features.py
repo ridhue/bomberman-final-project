@@ -8,7 +8,31 @@ FEATURE_VERSION = "v4_stage3_opponent_hunt_bomb_escape"
 DIRECTIONS = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 DELTA = {'UP': (0, -1), 'DOWN': (0, 1), 'LEFT': (-1, 0), 'RIGHT': (1, 0)}
 
+
+def legal_action_mask(game_state, actions):
+    """Exclude actions blocked in the observed state; WAIT always remains legal.
+
+    Opponents can move later in the same step, so this cannot prevent every
+    collision. This checks physical legality, not whether an action is good.
+    """
+    mask = np.ones(len(actions), dtype=bool)
+    if game_state is None:
+        return mask
+    field = game_state['field']
+    free = _free_mask(field, game_state)
+    x, y = game_state['self'][3]
+    for i, action in enumerate(actions):
+        if action in DELTA:
+            dx, dy = DELTA[action]
+            nx, ny = x + dx, y + dy
+            mask[i] = (0 <= nx < field.shape[0] and 0 <= ny < field.shape[1]
+                       and free[nx, ny])
+        elif action == 'BOMB':
+            mask[i] = bool(game_state['self'][2])
+    return mask
+
 N_FEATURES = 36
+N_ENHANCED_FEATURES = 57
 # 4 free-direction flags + 5-way coin-direction one-hot + coin distance + bias        (11, stage 1)
 # 4 danger-direction flags + 1 danger-here flag                                       (5)
 # 5-way escape-direction one-hot (nearest safe tile)                                  (5)
@@ -109,7 +133,7 @@ def _escape_exists_if_bombed(field: np.ndarray, game_state: dict, x: int, y: int
     """True if some tile stays reachable and safe after a bomb dropped at (x, y) now."""
     hypothetical_danger = _danger_tiles(field, game_state) | set(_bomb_blast_coords(field, x, y))
     free = _free_mask(field, game_state)
-    free[x, y] = False  # the bomb we'd drop here blocks this tile too
+    free[x, y] = False  # The hypothetical bomb occupies the current tile.
     safe_tiles = [tile for tile in zip(*np.nonzero(free)) if tile not in hypothetical_danger]
     direction, _ = _bfs_direction_to_nearest(free, (x, y), safe_tiles)
     return direction is not None
@@ -164,9 +188,7 @@ def state_to_features(game_state: dict) -> np.ndarray:
     danger_here = np.array([1.0 if (x, y) in danger_tiles else 0.0], dtype=np.float32)
 
     safe_tiles = [tile for tile in zip(*np.nonzero(free)) if tile not in danger_tiles]
-    # traverse on `free`, not a safe-only mask - escaping usually means crossing
-    # 1-2 still-dangerous tiles before clearing the blast radius, so restricting
-    # traversal to already-safe tiles made most real escapes invisible to BFS
+    # Escape paths may cross blast tiles before reaching a safe destination.
     escape_direction, _ = _bfs_direction_to_nearest(free, (x, y), safe_tiles)
     escape_onehot = _direction_onehot(escape_direction)
 
@@ -211,3 +233,31 @@ def state_to_features(game_state: dict) -> np.ndarray:
         opponent_onehot, [opponent_dist_norm],
         opponent_in_blast,
     ]).astype(np.float32)
+
+
+def enhanced_features(game_state, history, base=None):
+    """Append history and interactions while preserving all 36 old features.
+
+    Counts describe revisiting neighboring positions, not a prescribed action.
+    Interaction features let a linear model learn different values in danger
+    and safety. All new weights start at zero when continuing an old model.
+    """
+    if game_state is None:
+        return np.zeros(N_ENHANCED_FEATURES, dtype=np.float32)
+    if base is None:
+        base = state_to_features(game_state)
+    x, y = game_state['self'][3]
+    safe = 1.0 - base[15]
+    counts = np.array([
+        list(history).count((x + DELTA[a][0], y + DELTA[a][1])) / 8.0
+        for a in DIRECTIONS
+    ], dtype=np.float32)
+    counts *= safe * (1.0 - base[11:15])
+    # Coin/crate pursuit when safe, escape when threatened, and the conjunction
+    # of available bomb + escape route + useful crate/opponent placement.
+    crate_here = float(base[26] == 0)
+    bomb_ready_safe = base[27] * base[28] * safe
+    return np.concatenate([base, counts, base[4:9] * safe,
+                           base[21:26] * safe, base[16:21] * base[15],
+                           [bomb_ready_safe * crate_here,
+                            bomb_ready_safe * base[35]]]).astype(np.float32)

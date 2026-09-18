@@ -129,3 +129,10 @@ CLAUDE.md
 docs/ridhu_report_log.md
 final_project.pdf
 
+# Model-1 experiment archive and external test opponents
+/local_model1/
+/agent_code/RUEHL_BASED_AGENT/
+/agent_code/internet_imitator/
+/agent_code/internet_voldemort/
+.Rhistory
+
