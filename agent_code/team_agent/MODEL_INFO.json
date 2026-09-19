@@ -1,0 +1,28 @@
+{
+  "trained_checkpoint_sha256": "5f178494f390931f53682661356501705f38391f6720a641b8b1730da69e6051",
+  "deployment_checkpoint_sha256": "823fb9fb031b44aff8e9f918054d61f5d717324a38e76e8f994cd57f8481a45c",
+  "weights_identical": true,
+  "n_features": 57,
+  "settings": {
+    "legal_mask": true,
+    "survival_mask": true,
+    "bomb_margin": 1,
+    "ongoing_escape_buffer": true
+  },
+  "source_and_checkpoint_sha256": {
+    "agent_code/team_agent/callbacks.py": "49ec3ffe4d788b6494df90341f8598341b659b9553ebdb5c464097901134a0a7",
+    "agent_code/team_agent/config.py": "82e68c6a49617657bd824143161316cfe075cdde70c3f7e6259ce961f64e9f16",
+    "agent_code/team_agent/features.py": "d77b339aa3ed9b7feb9899289de6615f1691c1be5ca473d8058575f1bec375d8",
+    "agent_code/team_agent/model.py": "9d714d7a44af3dd3cd5847cd4c4c1c99141032d959aed2d785113c822a5a3946",
+    "agent_code/team_agent/rewards.py": "80074b346ee9069da06e58b98998393877ffc7fcb3070c9f74fc8c12914ec325",
+    "agent_code/team_agent/run_training.py": "4350e0dd75c95ce16fe6f1ee31e3d6b5ef6cd24121f7040ef9ea05eb937e3542",
+    "agent_code/team_agent/safety.py": "d9d922ef5a6df7caa28a86585e9afeee66ea2ff2230ee7fcb4aa57bd6bfbe732",
+    "agent_code/team_agent/train.py": "2dd2dfab2776b12b0427cf40d31f0ffae4ae8eac42c2e7aef27e1898daac2076",
+    "agent_code/team_agent/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "agent_code/team_agent/team-agent-model.pt": "823fb9fb031b44aff8e9f918054d61f5d717324a38e76e8f994cd57f8481a45c"
+  },
+  "note": "Only deployment metadata differs from frozen trained checkpoint. No training. Engine and opponent agents excluded.",
+  "trained_checkpoint": "checkpoints/model1_extra_seed31/model.pt",
+  "original_checkpoint": "checkpoints/before_improvements/team-agent-model.pt",
+  "version": "model1-continuation-500-buffer"
+}
