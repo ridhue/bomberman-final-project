@@ -11,4 +11,7 @@ EPSILON_START = 1.0
 EPSILON_MIN = 0.05
 EPSILON_DECAY = 0.999
 
-RESUME_TRAINING = False
+RESUME_TRAINING = True
+EPSILON_RESUME = 0.3
+
+#for stage 2 : warm-start Stage 1 weights into Stage 2 (classic — crates + bombs). Curriculum, not scratch — same recipe that rescued Model 1 (70%→16% self-kill).

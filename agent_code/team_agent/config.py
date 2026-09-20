@@ -11,3 +11,9 @@ DISCOUNT_FACTOR = 0.95
 EPSILON_START = 1.0
 EPSILON_MIN = 0.05
 EPSILON_DECAY = 0.9995
+
+
+# Stage 1: Baseline training, no opponent
+STAGE = 1
+OPPONENT = None
+ROUNDS = 20000
