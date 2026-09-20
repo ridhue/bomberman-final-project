@@ -1,0 +1,22 @@
+{
+  "timestamp": "20260916_140316",
+  "scenario": "classic",
+  "seed": "31",
+  "learning_rate": 0.0005,
+  "discount_factor": 0.95,
+  "epsilon_start": 0.08,
+  "epsilon_min": 0.05,
+  "epsilon_decay": 0.999,
+  "checkpoint_interval": 500,
+  "best_score_window": 10,
+  "eval_interval": 1000,
+  "eval_rounds": 20,
+  "reward_config": "S3_C",
+  "revisit_penalty": 0.5,
+  "n_features": 57,
+  "legal_action_mask": true,
+  "survival_action_mask": true,
+  "bomb_escape_margin": 0,
+  "initial_model": "C:\\Users\\Benutze\\Desktop\\bomberman-final-project\\agent_code\\team_agent\\team-agent-model.pt",
+  "opponents": "rule_based_agent,rule_based_agent,rule_based_agent"
+}

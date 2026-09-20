@@ -6,19 +6,15 @@ from pathlib import Path
 from typing import List
 
 import events as e
-from .config import ACTIONS, EPSILON_MIN, EPSILON_DECAY, MODEL_FILE
-from .features import state_to_features
+from .config import ACTIONS, EPSILON_MIN, EPSILON_DECAY, MODEL_FILE, REWARD_CONFIG, REVISIT_PENALTY
+from .callbacks import policy_features, policy_action_mask
 from .rewards import add_custom_events, reward_from_events
 
 CHECKPOINT_DIR = Path("checkpoints") / os.environ.get("TRAIN_STAGE", "stage1")
 CHECKPOINT_INTERVAL = 500
 BEST_SCORE_WINDOW = 10
 
-# Every EVAL_INTERVAL rounds, run EVAL_ROUNDS rounds greedily (epsilon=0, no
-# learning) and log them separately - training-log stats are measured under
-# exploration noise and can't be trusted as a proxy for the deployed policy
-# (see report log Entry 7), so this gives a real trend without a manual
-# held-out eval pass after the fact.
+# Periodic greedy evaluation is logged separately from exploratory training.
 EVAL_INTERVAL = 1000
 EVAL_ROUNDS = 20
 
@@ -51,6 +47,14 @@ def setup_training(self):
             "best_score_window": BEST_SCORE_WINDOW,
             "eval_interval": EVAL_INTERVAL,
             "eval_rounds": EVAL_ROUNDS,
+            "reward_config": REWARD_CONFIG,
+            "revisit_penalty": REVISIT_PENALTY,
+            "n_features": self.model.n_features,
+            "legal_action_mask": self.use_legal_action_mask,
+            "survival_action_mask": self.use_survival_action_mask,
+            "bomb_escape_margin": self.bomb_escape_margin,
+            "initial_model": os.environ.get('INITIAL_MODEL', 'fresh'),
+            "opponents": os.environ.get('TRAIN_OPPONENTS', 'unknown'),
         }, f, indent=2)
 
 
@@ -80,9 +84,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
             self.model.epsilon = self.epsilon
         return
 
-    # exponential decay - reaches EPSILON_MIN early enough to leave most of the
-    # run for exploitation, unlike the linear schedule which only gets there
-    # right at the end for a 20k-round budget
+    # Decay exploration toward EPSILON_MIN after each training round.
     self.epsilon = max(EPSILON_MIN, self.epsilon * EPSILON_DECAY)
     self.model.epsilon = self.epsilon
 
@@ -115,7 +117,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
         with open(CHECKPOINT_DIR / f"checkpoint_{self.round_count:06d}.pt", "wb") as f:
             pickle.dump(self.model, f)
 
-    # live model, unchanged
+    # Save the current model.
     with open(MODEL_FILE, "wb") as file:
         pickle.dump(self.model, file)
 
@@ -157,13 +159,21 @@ def _learn_step(self, old_state, action, new_state, events: List[str], done: boo
     if not learn:
         return
 
-    features = state_to_features(old_state)
-    next_features = None if done else state_to_features(new_state)
+    features = self.action_features
+    next_features = None if done else policy_features(self, new_state)
     action_idx = ACTIONS.index(action)
     all_events = add_custom_events(old_state, action, new_state, events)
 
-    reward = reward_from_events(all_events, config_name="S3_C")
+    reward = reward_from_events(all_events, config_name=REWARD_CONFIG)
+    # Optional controlled experiment: discourage repeated safe positions.
+    # Apply only to successful moves outside danger, so escaping is not punished.
+    if (REVISIT_PENALTY and new_state is not None and e.INVALID_ACTION not in events
+            and action in ('UP', 'RIGHT', 'DOWN', 'LEFT')
+            and features[15] == 0 and next_features[15] == 0
+            and new_state['self'][3] in self.position_history):
+        reward -= REVISIT_PENALTY
 
-    td_error = self.model.update(features, action_idx, reward, next_features, done)
+    next_mask = policy_action_mask(self, new_state) if not done else None
+    td_error = self.model.update(features, action_idx, reward, next_features, done, next_mask)
     self.td_errors.append(td_error)
     self.logger.debug(f"TD error: {td_error:.3f}, reward: {reward}")
