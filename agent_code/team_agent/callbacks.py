@@ -1,5 +1,6 @@
 import os
 import pickle
+import sys
 from collections import deque
 
 import numpy as np
@@ -12,6 +13,15 @@ from .config import (
 from .features import state_to_features, N_FEATURES, N_ENHANCED_FEATURES, enhanced_features, legal_action_mask
 from .safety import survival_action_mask, buffered_survival_action_mask
 from .model import LinearQModel
+
+# Saved checkpoints pickle LinearQModel instances, which embed the class's
+# module path (e.g. "agent_code.team_agent.model") at save time. The
+# submission process copies this directory under the team's own name (e.g.
+# "agent_code.finetune"), which breaks that reference on load. Alias the
+# original path to wherever this package actually lives, so old and renamed
+# checkpoints both unpickle correctly regardless of the folder name.
+sys.modules.setdefault("agent_code.team_agent", sys.modules[__package__])
+sys.modules.setdefault("agent_code.team_agent.model", sys.modules[__package__ + ".model"])
 
 
 def setup(self):
