@@ -1,10 +1,10 @@
 {
-  "timestamp": "20260920_060041",
+  "timestamp": "20260920_053132",
   "scenario": "classic",
   "seed": "42",
   "learning_rate": 0.01,
   "discount_factor": 0.95,
-  "epsilon_start": 0.15,
+  "epsilon_start": 1.0,
   "epsilon_min": 0.05,
   "epsilon_decay": 0.999,
   "checkpoint_interval": 500,
