@@ -43,7 +43,7 @@ REWARD_CONFIGS = {
     # Add behaviour penalties
     "B": {
         e.COIN_COLLECTED: 10,
-        e.INVALID_ACTION: -1,
+        e.INVALID_ACTION: -3,
         e.WAITED: -0.5,
         e.BOMB_DROPPED: -2,
         e.KILLED_SELF: -20,

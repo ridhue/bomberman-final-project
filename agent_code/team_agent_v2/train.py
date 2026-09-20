@@ -20,7 +20,7 @@ BEST_SCORE_WINDOW = 10
 # (see report log Entry 7), so this gives a real trend without a manual
 # held-out eval pass after the fact.
 EVAL_INTERVAL = 1000
-EVAL_ROUNDS = 20
+EVAL_ROUNDS = 50
 
 
 def setup_training(self):
@@ -101,14 +101,14 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.coins_this_round = 0
 
     # best model, on a rolling window
-    self.recent_scores.append(score)
-    self.recent_scores = self.recent_scores[-BEST_SCORE_WINDOW:]
-    if len(self.recent_scores) == BEST_SCORE_WINDOW:
-        window_mean = sum(self.recent_scores) / BEST_SCORE_WINDOW
-        if window_mean > self.best_score:
-            self.best_score = window_mean
-            with open(CHECKPOINT_DIR / "checkpoint_best.pt", "wb") as f:
-                pickle.dump(self.model, f)
+#    self.recent_scores.append(score)
+ #   self.recent_scores = self.recent_scores[-BEST_SCORE_WINDOW:]
+  #  if len(self.recent_scores) == BEST_SCORE_WINDOW:
+   #     window_mean = sum(self.recent_scores) / BEST_SCORE_WINDOW
+    #    if window_mean > self.best_score:
+     #       self.best_score = window_mean
+      #      with open(CHECKPOINT_DIR / "checkpoint_best.pt", "wb") as f:
+       #         pickle.dump(self.model, f)
 
     # periodic snapshot
     if self.round_count % CHECKPOINT_INTERVAL == 0:
@@ -137,6 +137,12 @@ def _flush_eval_batch(self):
     self_kills = sum(r["self_kill"] for r in self.eval_batch)
     avg_score = sum(r["score"] for r in self.eval_batch) / n
     avg_coins = sum(r["coins"] for r in self.eval_batch) / n
+
+    eval_score = avg_coins - 5.0 * (self_kills / n)
+    if eval_score > self.best_score:
+        self.best_score = eval_score
+        with open(CHECKPOINT_DIR / "checkpoint_best.pt", "wb") as f:
+            pickle.dump(self.model, f)
 
     with open(CHECKPOINT_DIR / "eval_metrics.jsonl", "a") as f:
         f.write(json.dumps({
