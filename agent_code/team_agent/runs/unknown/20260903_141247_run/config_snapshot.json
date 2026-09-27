@@ -1,0 +1,12 @@
+{
+  "timestamp": "20260903_141247",
+  "scenario": "unknown",
+  "feature_version": "v1_stage1_nav_coin",
+  "learning_rate": 0.05,
+  "discount_factor": 0.95,
+  "epsilon_start": 1.0,
+  "epsilon_min": 0.05,
+  "epsilon_decay": 0.9995,
+  "checkpoint_interval": 50,
+  "best_score_window": 10
+}

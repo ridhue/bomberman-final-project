@@ -1,0 +1,14 @@
+{
+  "timestamp": "20260911_121510",
+  "scenario": "classic",
+  "seed": "1",
+  "learning_rate": 0.01,
+  "discount_factor": 0.95,
+  "epsilon_start": 1.0,
+  "epsilon_min": 0.05,
+  "epsilon_decay": 0.999,
+  "checkpoint_interval": 500,
+  "best_score_window": 10,
+  "eval_interval": 1000,
+  "eval_rounds": 20
+}

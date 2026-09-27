@@ -1,0 +1,11 @@
+{
+  "timestamp": "20260905_113156",
+  "scenario": "coin-heaven",
+  "learning_rate": 0.05,
+  "discount_factor": 0.95,
+  "epsilon_start": 1.0,
+  "epsilon_min": 0.05,
+  "epsilon_decay": 0.999,
+  "checkpoint_interval": 500,
+  "best_score_window": 10
+}

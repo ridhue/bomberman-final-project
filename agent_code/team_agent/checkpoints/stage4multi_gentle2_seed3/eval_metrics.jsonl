@@ -1,0 +1,5 @@
+{"round": 1020, "n_eval_rounds": 20, "self_kill_rate": 0.0, "avg_score": 0.15, "avg_coins": 0.15}
+{"round": 2020, "n_eval_rounds": 20, "self_kill_rate": 0.0, "avg_score": 0.3, "avg_coins": 0.3}
+{"round": 3020, "n_eval_rounds": 20, "self_kill_rate": 0.0, "avg_score": 0.05, "avg_coins": 0.05}
+{"round": 4020, "n_eval_rounds": 20, "self_kill_rate": 0.0, "avg_score": 0.1, "avg_coins": 0.1}
+{"round": 5020, "n_eval_rounds": 20, "self_kill_rate": 0.25, "avg_score": 0.15, "avg_coins": 0.15}

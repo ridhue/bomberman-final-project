@@ -1,0 +1,20 @@
+{
+    "by_agent": {
+        "team_agent": {
+            "coins": 22,
+            "moves": 400,
+            "rounds": 1,
+            "score": 22,
+            "steps": 400,
+            "time": 0.06749105453491211
+        }
+    },
+    "by_round": {
+        "Round 01 (2026-09-05 05-00-27)": {
+            "coins": 22,
+            "kills": 0,
+            "steps": 400,
+            "suicides": 0
+        }
+    }
+}

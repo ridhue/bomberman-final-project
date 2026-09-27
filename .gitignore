@@ -104,6 +104,7 @@ venv.bak/
 .mypy_cache/
 
 .idea
+.vscode/
 /models
 screenshots/*.png
 screenshots/*.mp4
@@ -113,6 +114,11 @@ replays/
 results/
 
 agent_code/*/logs/
+agent_code/*/runs/
+
+# Accidental stray files from shell mishaps
+26.2.1
+\[76
 
 # Local AI / agent files
 CLAUDE.md
@@ -122,4 +128,11 @@ CLAUDE.md
 # Local project/report notes
 docs/ridhu_report_log.md
 final_project.pdf
+
+# Model-1 experiment archive and external test opponents
+/local_model1/
+/agent_code/RUEHL_BASED_AGENT/
+/agent_code/internet_imitator/
+/agent_code/internet_voldemort/
+.Rhistory
 
